@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Zeka Küpleri</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zeka Küpleri">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#e9ecf1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1014" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+@media (prefers-color-scheme: dark) { :root { color-scheme: dark; } }
+body { margin: 0; overscroll-behavior: none; }
+[hidden] { display: none !important; }
+</style>
+<style>
+/* Layout: tek ekranlık uygulama. Menü = küp kartlarının kayan ızgarası; oyun = üst çubuk, 3B sahne, altta Karıştır / Kendin çöz.
+   Arayüz tek renkli (mürekkep + kağıt); renk yalnızca küplerde. */
+:root {
+  --bg: #e9ecf1;
+  --surface: #f7f8fa;
+  --ink: #14171d;
+  --muted: #586070;
+  --line: #cfd4dd;
+  --glow: #ffffff;
+  --body: #15181e;
+  --focus: #1f5fd8;
+  --font-display: "Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1014;
+    --surface: #161a20;
+    --ink: #eef0f4;
+    --muted: #9aa2b0;
+    --line: #2a2f39;
+    --glow: #1d222b;
+    --body: #15181e;
+    --focus: #7aa5ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1014;
+  --surface: #161a20;
+  --ink: #eef0f4;
+  --muted: #9aa2b0;
+  --line: #2a2f39;
+  --glow: #1d222b;
+  --body: #15181e;
+  --focus: #7aa5ff;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.45 var(--font-display);
+  padding-block: 8px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- Menü ---------- */
+.menu {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 980px;
+  margin-inline: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-block: 12px 20px;
+}
+.head { display: flex; align-items: center; gap: 16px; margin-block-end: 20px; }
+.logo { display: grid; grid-template-columns: repeat(3, 14px); gap: 3px; flex: none; }
+.logo i { display: block; width: 14px; height: 14px; border-radius: 3px; }
+h1 {
+  margin: 0;
+  font-weight: 800;
+  font-size: clamp(1.9rem, 7vw, 2.8rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  text-wrap: balance;
+}
+.sub { margin: 6px 0 0; color: var(--muted); max-width: 46ch; }
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
+  gap: 12px;
+}
+.grid li { min-width: 0; }
+.card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.card:hover { transform: translateY(-2px); border-color: var(--ink); }
+.card:active { transform: translateY(0); }
+.pv {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  background: radial-gradient(70% 70% at 50% 46%, var(--glow), transparent);
+}
+.pv svg { width: 78%; height: auto; max-width: 100%; display: block; }
+.pv .b { fill: var(--body); }
+.info { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px 13px; }
+.num { font-weight: 800; font-size: 1.75rem; letter-spacing: -0.02em; line-height: 1.05; }
+.nm { font-weight: 500; }
+.mt {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+/* ---------- Oyun ---------- */
+.game {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 980px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+}
+.bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-left: -6px;
+  padding: 0 12px 0 2px;
+  background: none;
+  border: 0;
+  font-weight: 600;
+  cursor: pointer;
+}
+.back svg, .seg svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.gtitle { margin: 0; font-size: 1.1rem; font-weight: 500; white-space: nowrap; text-align: center; }
+.gtitle b { font-weight: 800; letter-spacing: -0.02em; }
+.stats {
+  justify-self: end;
+  display: flex;
+  flex-direction: column;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: radial-gradient(58% 52% at 50% 48%, var(--glow), transparent 100%);
+}
+#gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+#gl:active { cursor: grabbing; }
+.solved {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.solved small { font-family: var(--font-mono); font-weight: 500; font-size: 0.75rem; opacity: 0.85; }
+.fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); }
+.hint {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-wrap: balance;
+  transition: opacity 0.4s ease;
+}
+.hint.off { opacity: 0; }
+.dock { padding-block: 10px 4px; }
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-width: 440px;
+  margin-inline: auto;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.seg button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 54px;
+  padding: 0 12px;
+  background: transparent;
+  border: 0;
+  font-weight: 600;
+  font-size: 1rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.seg button + button { border-left: 2px solid var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg button:disabled:not([aria-pressed="true"]) { opacity: 0.4; cursor: default; }
+.seg button:focus-visible { outline-offset: -6px; }
+
+/* ---------- Mod ekranı (Kendin çöz / Öğren / Çözdür) ---------- */
+.page { flex: 1; min-height: 0; width: 100%; max-width: 640px; margin-inline: auto; overflow-y: auto; padding-block: 4px 20px; }
+.page .bar { margin-bottom: 8px; }
+.modes { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.mode { width: 100%; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 16px; text-align: left; padding: 16px 18px; background: var(--surface); border: 2px solid var(--ink); border-radius: 16px; cursor: pointer; }
+.mode:disabled { opacity: 0.5; cursor: default; }
+.mode:not(:disabled):active { transform: scale(0.99); }
+.mode .no { grid-row: span 2; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--ink); color: var(--bg); font-weight: 800; font-size: 1.25rem; }
+.mode b { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; }
+.mode span.d { color: var(--muted); font-size: 0.88rem; }
+.mpv { display: flex; justify-content: center; margin: 6px 0 2px; }
+.mpv svg { width: 110px; height: auto; }
+.mpv .b { fill: var(--body); }
+
+/* ---------- Oyun paneli (Öğren / Çözdür) ---------- */
+.panel { margin-top: 6px; padding: 12px 14px; max-height: 40%; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.panel h3 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 800; }
+.panel .st { font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); }
+.panel p { margin: 4px 0 8px; font-size: 0.92rem; }
+.alg { display: inline-block; font-family: var(--font-mono); font-size: 0.95rem; padding: 6px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); margin-bottom: 8px; word-spacing: 4px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { min-height: 44px; padding: 0 16px; border: 2px solid var(--ink); border-radius: 999px; background: transparent; font-weight: 600; cursor: pointer; }
+.btn.pri { background: var(--ink); color: var(--bg); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.ok { color: var(--ink); font-weight: 800; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0; }
+.chip { min-width: 34px; padding: 4px 7px; text-align: center; font-family: var(--font-mono); font-size: 0.85rem; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--muted); }
+.chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip.done { color: var(--ink); }
+
+/* ---------- Renk girişi ---------- */
+.net { display: grid; justify-content: center; gap: 6px; margin: 10px 0; }
+.nface { display: grid; gap: 2px; padding: 3px; border-radius: 6px; background: var(--ink); }
+.cell { width: var(--cs, 26px); height: var(--cs, 26px); border: 0; border-radius: 4px; padding: 0; cursor: pointer; }
+.cell:focus-visible { outline-offset: 1px; }
+.fl { font-size: 0.65rem; font-family: var(--font-mono); color: var(--muted); text-align: center; }
+.pal { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.sw { position: relative; width: 46px; height: 46px; border-radius: 12px; border: 3px solid transparent; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
+.sw[aria-pressed="true"] { border-color: var(--focus); }
+.sw small { position: absolute; right: -2px; bottom: -16px; left: -2px; font: 500 0.65rem var(--font-mono); color: var(--muted); text-align: center; }
+.err { margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: var(--ink); color: var(--bg); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .hint { transition: none; }
+}
+</style>
+</head>
+<body>
+<main id="menu" class="menu">
+  <header class="head">
+    <div class="logo" id="logo" aria-hidden="true"></div>
+    <div>
+      <h1>Zeka Küpleri</h1>
+      <p class="sub">Altı küp, kolaydan zora. Birini seç ve çevirmeye başla.</p>
+    </div>
+  </header>
+  <ul class="grid" id="grid"></ul>
+</main>
+
+<section id="mode" class="page" hidden>
+  <div class="bar">
+    <button id="mBack" class="back" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Menü</button>
+    <h2 id="mTitle" class="gtitle"></h2>
+    <span></span>
+  </div>
+  <div class="mpv" id="mPv"></div>
+  <ul class="modes">
+    <li><button id="mPlay" class="mode" type="button"><span class="no">1</span><b>Kendin çöz</b><span class="d">Küpü karıştır, katmanları sürükleyerek kendin çöz.</span></button></li>
+    <li><button id="mLearn" class="mode" type="button"><span class="no">2</span><b>Öğren</b><span class="d">Adım adım, küp üzerinde deneyerek çözmeyi öğren.</span></button></li>
+    <li><button id="mSolve" class="mode" type="button"><span class="no">3</span><b>Çözdür</b><span class="d" id="mSolveD">Elindeki küpün renklerini gir, adım adım çözümü izle.</span></button></li>
+  </ul>
+</section>
+
+<section id="entry" class="page" hidden>
+  <div class="bar">
+    <button id="eBack" class="back" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Geri</button>
+    <h2 id="eTitle" class="gtitle"></h2>
+    <span></span>
+  </div>
+  <p class="sub" id="eHelp" style="margin:8px 0 0"></p>
+  <div class="pal" id="pal" style="margin-bottom:22px"></div>
+  <div class="net" id="net"></div>
+  <div class="err" id="eErr" hidden></div>
+  <div class="row" style="justify-content:center;margin-top:12px">
+    <button id="eReset" class="btn" type="button">Sıfırla</button>
+    <button id="eGo" class="btn pri" type="button">Çözümü göster</button>
+  </div>
+</section>
+
+<section id="game" class="game" hidden>
+  <div class="bar">
+    <button id="back" class="back" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Menü
+    </button>
+    <h2 id="gtitle" class="gtitle"></h2>
+    <div class="stats"><span id="smoves">0 hamle</span><span id="stime">00:00</span></div>
+  </div>
+  <div class="stage" id="stage">
+    <canvas id="gl" aria-label="Zeka küpü"></canvas>
+    <div class="solved" id="solved" role="status" hidden></div>
+    <p class="fail" id="fail" hidden>Bu cihazda 3B grafik açılamadı. Tarayıcıyı güncelleyip yeniden dene.</p>
+  </div>
+  <p class="hint" id="hint">Küpün üstünde sürükle, o katman döner. Boşlukta sürükle, küp döner.</p>
+  <div class="panel" id="panel" hidden></div>
+  <div class="dock" id="dock">
+    <div class="seg" role="group" aria-label="Oyun modu">
+      <button id="bShuffle" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
+        <span id="lShuffle">Karıştır</span>
+      </button>
+      <button id="bSolve" type="button" aria-pressed="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+        <span>Kendin çöz</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="solver.js"></script>
+<script src="lessons.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Veri ---------- */
+  var PUZ = [
+    { n: 2, name: "Cep küpü", pieces: 8,   states: "3,7 × 10<sup>6</sup>" },
+    { n: 3, name: "Klasik",   pieces: 26,  states: "4,3 × 10<sup>19</sup>" },
+    { n: 4, name: "İntikam",  pieces: 56,  states: "7,4 × 10<sup>45</sup>" },
+    { n: 5, name: "Profesör", pieces: 98,  states: "2,8 × 10<sup>74</sup>" },
+    { n: 6, name: "Usta",     pieces: 152, states: "1,6 × 10<sup>116</sup>" },
+    { n: 7, name: "Efsane",   pieces: 218, states: "2,0 × 10<sup>160</sup>" }
+  ];
+  var COL = { W: "#f4f4ef", Y: "#ffd60a", R: "#e1272f", O: "#ff7a1c", B: "#1e5fd9", G: "#18a558" };
+  var FACE = { "+x": "R", "-x": "O", "+y": "W", "-y": "Y", "+z": "G", "-z": "B" };
+
+  function $(id) { return document.getElementById(id); }
+  var menuEl = $("menu"), gameEl = $("game"), grid = $("grid"), stage = $("stage"), canvas = $("gl");
+  var gtitle = $("gtitle"), smoves = $("smoves"), stime = $("stime"), solvedEl = $("solved"), hint = $("hint");
+  var bShuffle = $("bShuffle"), bSolve = $("bSolve"), lShuffle = $("lShuffle"), failEl = $("fail");
+
+  /* ---------- Menü ---------- */
+  ["W", "R", "G", "B", "Y", "O", "R", "W", "B"].forEach(function (k) {
+    var i = document.createElement("i");
+    i.style.background = COL[k];
+    $("logo").appendChild(i);
+  });
+
+  function iso(n) {
+    var c = Math.sqrt(3) / 2, g = 0.075;
+    function P(x, y, z) { return ((x - z) * c).toFixed(3) + "," + ((x + z) * 0.5 - y).toFixed(3); }
+    function poly(pts, fill) { return '<polygon points="' + pts.join(" ") + '"' + (fill ? ' fill="' + fill + '"' : ' class="b"') + "/>"; }
+    var out = "";
+    out += poly([P(0, n, 0), P(n, n, 0), P(n, n, n), P(0, n, n)]);
+    out += poly([P(0, 0, n), P(n, 0, n), P(n, n, n), P(0, n, n)]);
+    out += poly([P(n, 0, 0), P(n, 0, n), P(n, n, n), P(n, n, 0)]);
+    for (var i = 0; i < n; i++) {
+      for (var j = 0; j < n; j++) {
+        var a0 = i + g, a1 = i + 1 - g, b0 = j + g, b1 = j + 1 - g;
+        out += poly([P(a0, n, b0), P(a1, n, b0), P(a1, n, b1), P(a0, n, b1)], COL.W);
+        out += poly([P(a0, b0, n), P(a1, b0, n), P(a1, b1, n), P(a0, b1, n)], COL.G);
+        out += poly([P(n, b0, a0), P(n, b0, a1), P(n, b1, a1), P(n, b1, a0)], COL.R);
+      }
+    }
+    var vb = [-n * c - 0.15, -n - 0.15, 2 * n * c + 0.3, 2 * n + 0.3].map(function (v) { return v.toFixed(3); }).join(" ");
+    return '<svg viewBox="' + vb + '" aria-hidden="true">' + out + "</svg>";
+  }
+
+  PUZ.forEach(function (p) {
+    var li = document.createElement("li");
+    li.innerHTML =
+      '<button class="card" type="button" aria-label="' + p.n + "×" + p.n + " " + p.name + '">' +
+      '<span class="pv">' + iso(p.n) + "</span>" +
+      '<span class="info"><span class="num">' + p.n + "×" + p.n + '</span><span class="nm">' + p.name + "</span>" +
+      '<span class="mt">' + p.pieces + " parça<br>" + p.states + " konum</span></span></button>";
+    li.firstChild.addEventListener("click", function () { openMode(p); });
+    grid.appendChild(li);
+  });
+
+  /* ---------- 3B sahne ---------- */
+  var THREE = window.THREE, renderer = null;
+  try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true }); } catch (e) { renderer = null; }
+
+  var scene, camera, bodyGeo, bodyMat, stickerGeo, stickerMats = {};
+  var V3, V2, Q4, AX;
+  var N = 3, cubeGroup = null, cubies = [];
+
+  if (renderer) {
+    V3 = THREE.Vector3; V2 = THREE.Vector2; Q4 = THREE.Quaternion;
+    AX = [new V3(1, 0, 0), new V3(0, 1, 0), new V3(0, 0, 1)];
+    renderer.setClearColor(0x000000, 0);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(32, 1, 0.1, 400);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    var key = new THREE.DirectionalLight(0xffffff, 0.55); key.position.set(-3, 6, 8); scene.add(key);
+    var fill = new THREE.DirectionalLight(0xffffff, 0.2); fill.position.set(6, -2, 3); scene.add(fill);
+
+    bodyGeo = new THREE.BoxGeometry(0.98, 0.98, 0.98);
+    bodyMat = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.6, metalness: 0 });
+    stickerGeo = roundedRect(0.86, 0.15);
+    Object.keys(COL).forEach(function (k) {
+      stickerMats[k] = new THREE.MeshStandardMaterial({
+        color: COL[k], roughness: 0.38, metalness: 0,
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+      });
+    });
+  }
+
+  function roundedRect(s, r) {
+    var h = s / 2, sh = new THREE.Shape();
+    sh.moveTo(-h + r, -h); sh.lineTo(h - r, -h); sh.quadraticCurveTo(h, -h, h, -h + r);
+    sh.lineTo(h, h - r); sh.quadraticCurveTo(h, h, h - r, h);
+    sh.lineTo(-h + r, h); sh.quadraticCurveTo(-h, h, -h, h - r);
+    sh.lineTo(-h, -h + r); sh.quadraticCurveTo(-h, -h, -h + r, -h);
+    return new THREE.ShapeGeometry(sh, 6);
+  }
+
+  var FKEY = { "+y": "U", "+x": "R", "+z": "F", "-y": "D", "-x": "L", "-z": "B" };
+  var SCHEME = { U: "W", R: "R", F: "G", D: "Y", L: "O", B: "B" };
+  function stickerIdx(fk, ix, iy, iz, n) { // yüz, küp konumu -> yüz içindeki sıra (standart açılım)
+    var r, c;
+    if (fk === "U") { c = ix; r = iz; }
+    else if (fk === "R") { c = n - 1 - iz; r = n - 1 - iy; }
+    else if (fk === "F") { c = ix; r = n - 1 - iy; }
+    else if (fk === "D") { c = ix; r = n - 1 - iz; }
+    else if (fk === "L") { c = iz; r = n - 1 - iy; }
+    else { c = n - 1 - ix; r = n - 1 - iy; }
+    return r * n + c;
+  }
+  function uniformColors(n, scheme) {
+    var o = {}; Object.keys(scheme).forEach(function (k) { var a = []; for (var i = 0; i < n * n; i++) a.push(scheme[k]); o[k] = a; });
+    return o;
+  }
+  function buildCube(n, colors) {
+    N = n;
+    colors = colors || uniformColors(n, SCHEME);
+    if (cubeGroup) scene.remove(cubeGroup);
+    cubeGroup = new THREE.Group();
+    cubeGroup.rotation.set(0.5, -0.65, 0);
+    scene.add(cubeGroup);
+    cubies = [];
+    var off = (n - 1) / 2, Z = new V3(0, 0, 1);
+    for (var ix = 0; ix < n; ix++) for (var iy = 0; iy < n; iy++) for (var iz = 0; iz < n; iz++) {
+      var m = new THREE.Mesh(bodyGeo, bodyMat);
+      m.position.set(ix - off, iy - off, iz - off);
+      var faces = [];
+      if (ix === n - 1) faces.push(["+x", 1, 0, 0]);
+      if (ix === 0) faces.push(["-x", -1, 0, 0]);
+      if (iy === n - 1) faces.push(["+y", 0, 1, 0]);
+      if (iy === 0) faces.push(["-y", 0, -1, 0]);
+      if (iz === n - 1) faces.push(["+z", 0, 0, 1]);
+      if (iz === 0) faces.push(["-z", 0, 0, -1]);
+      faces.forEach(function (f) {
+        var fk = FKEY[f[0]], c = colors[fk][stickerIdx(fk, ix, iy, iz, n)], nrm = new V3(f[1], f[2], f[3]);
+        var s = new THREE.Mesh(stickerGeo, stickerMats[c]);
+        s.quaternion.setFromUnitVectors(Z, nrm);
+        s.position.copy(nrm).multiplyScalar(0.4925);
+        s.userData.n = nrm; s.userData.c = c;
+        m.add(s);
+      });
+      cubeGroup.add(m);
+      cubies.push(m);
+    }
+  }
+
+  function layout() {
+    if (!renderer) return;
+    var w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    var vf = camera.fov * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+    var r = N * 0.87 * 1.12, d = r / Math.sin(Math.min(vf, hf) / 2);
+    camera.position.set(0, 0, d);
+    camera.near = Math.max(0.1, d - N * 2);
+    camera.far = d + N * 2;
+    camera.updateProjectionMatrix();
+    camera.lookAt(0, 0, 0);
+    render();
+  }
+  function render() { if (renderer && cubeGroup) renderer.render(scene, camera); }
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(stage);
+  window.addEventListener("resize", layout);
+
+  function tween(ms, fn) {
+    return new Promise(function (res) {
+      var t0 = performance.now();
+      (function step(t) {
+        var k = Math.min(1, (t - t0) / ms);
+        fn(k); render();
+        if (k < 1) requestAnimationFrame(step); else res();
+      })(t0);
+    });
+  }
+  function eOut(k) { return 1 - Math.pow(1 - k, 3); }
+  function eIO(k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
+
+  /* ---------- Katman döndürme ---------- */
+  var _m;
+  function snap(c) {
+    c.position.set(Math.round(c.position.x * 2) / 2, Math.round(c.position.y * 2) / 2, Math.round(c.position.z * 2) / 2);
+    _m = _m || new THREE.Matrix4();
+    _m.makeRotationFromQuaternion(c.quaternion);
+    var e = _m.elements;
+    for (var i = 0; i < 16; i++) e[i] = Math.round(e[i]);
+    c.quaternion.setFromRotationMatrix(_m);
+  }
+  function beginPivot(axis, coord) {
+    var pv = new THREE.Group();
+    cubeGroup.add(pv);
+    var cs = Array.isArray(coord) ? coord : [coord];
+    cubies.filter(function (c) { var v = c.position.dot(axis); return cs.some(function (q) { return Math.abs(v - q) < 0.01; }); })
+      .forEach(function (c) { pv.attach(c); });
+    return pv;
+  }
+  function commit(pv) {
+    var parent = pv.parent;
+    pv.children.slice().forEach(function (c) { parent.attach(c); snap(c); });
+    parent.remove(pv);
+  }
+  function doMove(axis, coord, turns, ms) {
+    var pv = beginPivot(axis, coord), target = turns * Math.PI / 2;
+    return tween(ms, function (k) { pv.quaternion.setFromAxisAngle(axis, target * eIO(k)); })
+      .then(function () { commit(pv); });
+  }
+
+  function axisKey(v) {
+    var ax = Math.abs(v.x) > 0.5 ? "x" : Math.abs(v.y) > 0.5 ? "y" : "z";
+    return (v[ax] > 0 ? "+" : "-") + ax;
+  }
+  function isSolved() {
+    var seen = {};
+    for (var i = 0; i < cubies.length; i++) {
+      var c = cubies[i];
+      for (var j = 0; j < c.children.length; j++) {
+        var s = c.children[j], k = axisKey(s.userData.n.clone().applyQuaternion(c.quaternion));
+        if (seen[k] === undefined) seen[k] = s.userData.c;
+        else if (seen[k] !== s.userData.c) return false;
+      }
+    }
+    return true;
+  }
+
+  /* ---------- Oyun durumu ---------- */
+  var cur = null, gid = 0, busy = false, scrambled = false, moves = 0, menuScroll = 0;
+  var tStart = null, tStop = null, tId = null;
+
+  function fmt(ms) {
+    var s = Math.floor(ms / 1000), m = Math.floor(s / 60); s %= 60;
+    return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function elapsed() { return tStart === null ? 0 : (tStop || performance.now()) - tStart; }
+  function updateStats() { smoves.textContent = moves + " hamle"; stime.textContent = fmt(elapsed()); }
+  function startTimer() { if (tStart === null) { tStart = performance.now(); tStop = null; tId = setInterval(updateStats, 250); } }
+  function resetTimer() { clearInterval(tId); tId = null; tStart = null; tStop = null; }
+  function setSeg(mode) {
+    var sh = mode === "shuffle";
+    bShuffle.setAttribute("aria-pressed", String(sh));
+    bSolve.setAttribute("aria-pressed", String(!sh));
+    bShuffle.disabled = sh; bSolve.disabled = sh;
+    lShuffle.textContent = sh ? "Karıştırılıyor…" : "Karıştır";
+  }
+  function showSolved() {
+    solvedEl.innerHTML = "<span>Çözüldü!</span><small>" + moves + " hamle · " + fmt(elapsed()) + "</small>";
+    solvedEl.hidden = false;
+  }
+
+  /* ---------- Ekranlar ---------- */
+  var mode = "play", colorsCur = null, solution = [];
+  var modeEl = $("mode"), entryEl = $("entry"), panel = $("panel"), dock = $("dock"), statsEl = document.querySelector(".stats");
+  var LESSON_SCHEME = { U: "Y", D: "W", F: "G", B: "B", R: "O", L: "R" };
+  function show(w) { menuEl.hidden = w !== "menu"; modeEl.hidden = w !== "mode"; entryEl.hidden = w !== "entry"; gameEl.hidden = w !== "game"; }
+
+  function openMode(p) {
+    cur = p; menuScroll = menuEl.scrollTop;
+    $("mTitle").innerHTML = "<b>" + p.n + "×" + p.n + "</b> " + p.name;
+    $("mPv").innerHTML = iso(p.n);
+    var can = p.n <= 3;
+    $("mSolve").disabled = !can;
+    $("mSolveD").textContent = can ? "Elindeki küpün renklerini gir, adım adım çözümü izle." : "Çözdürme şimdilik 2×2 ve 3×3 küpler için var.";
+    show("mode"); modeEl.scrollTop = 0;
+  }
+  $("mBack").addEventListener("click", function () { show("menu"); menuEl.scrollTop = menuScroll; });
+  $("mPlay").addEventListener("click", function () { openGame(cur, "play"); });
+  $("mLearn").addEventListener("click", function () { openGame(cur, "learn"); });
+  $("mSolve").addEventListener("click", function () { openEntry(cur); });
+
+  function openGame(p, md, colors) {
+    cur = p; mode = md || "play"; colorsCur = colors || null; gid++; busy = false; drag = null;
+    show("game");
+    gtitle.innerHTML = "<b>" + p.n + "×" + p.n + "</b> " + p.name;
+    moves = 0; scrambled = false; resetTimer(); updateStats();
+    solvedEl.hidden = true; setSeg("solve");
+    var play = mode === "play";
+    dock.hidden = !play; statsEl.style.visibility = play ? "visible" : "hidden";
+    hint.hidden = !play; hint.classList.remove("off");
+    panel.hidden = play; panel.innerHTML = "";
+    if (!renderer) { failEl.hidden = false; return; }
+    var my = gid;
+    requestAnimationFrame(function () {
+      if (my !== gid) return;
+      buildCube(p.n, mode === "learn" ? uniformColors(p.n, LESSON_SCHEME) : colorsCur);
+      layout();
+      if (mode === "learn") learnStart(); else if (mode === "solve") solveStart();
+    });
+  }
+  $("back").addEventListener("click", function () {
+    gid++; busy = false; drag = null; resetTimer(); playing = false;
+    if (mode === "solve") show("entry"); else show("mode");
+  });
+
+  /* ---------- Hamle yazımı ---------- */
+  var BASE = { U: [1, 1, -1], D: [1, -1, 1], R: [0, 1, -1], L: [0, -1, 1], F: [2, 1, -1], B: [2, -1, 1] };
+  var FNAME = { U: "Üst", D: "Alt", R: "Sağ", L: "Sol", F: "Ön", B: "Arka" };
+  function parseMove(s) {
+    var ch = s.charAt(0), low = ch === ch.toLowerCase(), b = BASE[ch.toUpperCase()];
+    var off = (N - 1) / 2, coords = [b[1] * off];
+    if (low) coords.push(b[1] * (off - 1));
+    var k = s.indexOf("2") > 0 ? 2 : 1, tn = b[2] * k * (s.indexOf("'") > 0 ? -1 : 1);
+    return { axis: AX[b[0]], coords: coords, turns: tn };
+  }
+  function describe(s) {
+    var ch = s.charAt(0), w = ch === ch.toLowerCase() ? " yüzü ve altındaki katmanı" : " yüzü";
+    var how = s.indexOf("2") > 0 ? "yarım tur (iki çeyrek tur)" : s.indexOf("'") > 0 ? "saat yönünün tersine çeyrek tur" : "saat yönünde çeyrek tur";
+    return FNAME[ch.toUpperCase()] + w + ", o yüze karşıdan bakarak " + how + " çevir.";
+  }
+  function inv1(s) { return s.length === 1 ? s + "'" : s.charAt(1) === "2" ? s : s.charAt(0); }
+  function playMove(s, ms) { var m = parseMove(s); return doMove(m.axis, m.coords, m.turns, ms); }
+  function applyInstant(list) {
+    list.forEach(function (s) { var m = parseMove(s), pv = beginPivot(m.axis, m.coords); pv.quaternion.setFromAxisAngle(m.axis, m.turns * Math.PI / 2); commit(pv); });
+    render();
+  }
+  function rebuild(colors) { var q = cubeGroup.quaternion.clone(); buildCube(N, colors); cubeGroup.quaternion.copy(q); render(); }
+  var playing = false;
+  function btn(id, label, cls) { return '<button id="' + id + '" class="btn' + (cls ? " " + cls : "") + '" type="button">' + label + "</button>"; }
+
+  /* ---------- Öğren ---------- */
+  var steps = [], si = 0, lstat = null;
+  function expandStep(st) { var a = st.alg.split(" "), out = []; for (var i = 0; i < (st.rep || 1); i++) out = out.concat(a); return out; }
+  function learnStart() { steps = window.ZKLessons(cur.n); si = 0; learnShow(); }
+  function learnShow() {
+    var st = steps[si], my = gid;
+    var h = '<div class="st">Adım ' + (si + 1) + " / " + steps.length + "</div><h3>" + st.t + "</h3><p>" + st.txt + "</p>";
+    if (st.alg) h += '<div class="alg">' + st.alg + (st.rep ? "  × " + st.rep : "") + "</div>";
+    h += '<div class="row">';
+    if (st.alg) h += btn("lShow", "Göster") + btn("lReset", "Başa al");
+    h += btn("lPrev", "‹ Önceki") + btn("lNext", "Sonraki ›", st.alg ? "" : "pri") + '</div><p id="lstat" class="ok" role="status"></p>';
+    panel.innerHTML = h; panel.hidden = false; panel.scrollTop = 0;
+    lstat = $("lstat");
+    $("lPrev").disabled = si === 0; $("lNext").disabled = si === steps.length - 1;
+    $("lPrev").onclick = function () { if (busy) return; si--; learnShow(); };
+    $("lNext").onclick = function () { if (busy) return; si++; learnShow(); };
+    if (st.alg) {
+      resetCase();
+      $("lReset").onclick = function () { if (!busy) resetCase(); };
+      $("lShow").onclick = async function () {
+        if (busy) return;
+        resetCase(); busy = true; $("lShow").disabled = true;
+        var list = expandStep(st);
+        for (var i = 0; i < list.length; i++) { if (my !== gid) return; await playMove(list[i], 520); await new Promise(function (r) { setTimeout(r, 120); }); }
+        if (my !== gid) return;
+        busy = false; $("lShow").disabled = false; learnCheck();
+      };
+    }
+  }
+  function resetCase() {
+    var st = steps[si];
+    rebuild(uniformColors(cur.n, LESSON_SCHEME));
+    applyInstant(expandStep(st).map(inv1).reverse());
+    if (lstat) lstat.textContent = "";
+  }
+  function learnCheck() {
+    if (mode !== "learn" || !lstat || !steps[si].alg) return;
+    if (isSolved()) lstat.textContent = "✓ Tamam! Küp çözüldü. Sonraki adıma geçebilirsin.";
+  }
+
+  /* ---------- Renk girişi ---------- */
+  var PAL = [["W", "Beyaz"], ["Y", "Sarı"], ["R", "Kırmızı"], ["O", "Turuncu"], ["B", "Mavi"], ["G", "Yeşil"]];
+  var FORD = ["U", "R", "F", "D", "L", "B"], FLAB = { U: "Üst", R: "Sağ", F: "Ön", D: "Alt", L: "Sol", B: "Arka" };
+  var ent = null, brush = "W";
+  function openEntry(p) {
+    cur = p; ent = uniformColors(p.n, SCHEME); brush = "W";
+    $("eTitle").innerHTML = "<b>" + p.n + "×" + p.n + "</b> renkleri";
+    $("eHelp").textContent = p.n === 3
+      ? "Rengi seç, sonra karelere dokun. Küpü açılımdaki gibi gir: üst yüz üstte, ortada sol-ön-sağ-arka, altta alt yüz. Her yüzü doğrudan karşıdan bakıyormuş gibi gir. Ortadaki kare o yüzün rengini belirler."
+      : "Rengi seç, sonra karelere dokun. Açılım: üst yüz üstte, ortada sol-ön-sağ-arka, altta alt yüz; her yüzü karşıdan bakıyormuş gibi gir. Standart renkler olmalı (beyaz-sarı, kırmızı-turuncu, yeşil-mavi karşılıklı).";
+    $("eErr").hidden = true; $("eGo").disabled = false; $("eGo").textContent = "Çözümü göster";
+    drawEntry(); show("entry"); entryEl.scrollTop = 0;
+  }
+  function drawEntry() {
+    var n = cur.n, per = Math.floor((Math.min(window.innerWidth, 640) - 32 - 18) / 4);
+    var cs = Math.max(18, Math.min(34, Math.floor((per - 6 - (n - 1) * 2) / n)));
+    var pal = $("pal"), net = $("net"), cnt = {};
+    FORD.forEach(function (f) { ent[f].forEach(function (c) { cnt[c] = (cnt[c] || 0) + 1; }); });
+    pal.innerHTML = "";
+    PAL.forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "sw"; b.style.background = COL[c[0]];
+      b.setAttribute("aria-label", c[1]); b.setAttribute("aria-pressed", String(brush === c[0]));
+      b.innerHTML = "<small>" + (cnt[c[0]] || 0) + "/" + n * n + "</small>";
+      b.addEventListener("click", function () { brush = c[0]; drawEntry(); });
+      pal.appendChild(b);
+    });
+    net.innerHTML = ""; net.style.gridTemplateColumns = "repeat(4, auto)";
+    var pos = { U: [1, 2], L: [2, 1], F: [2, 2], R: [2, 3], B: [2, 4], D: [3, 2] };
+    Object.keys(pos).forEach(function (f) {
+      var w = document.createElement("div"); w.style.gridRow = pos[f][0]; w.style.gridColumn = pos[f][1];
+      var lab = document.createElement("div"); lab.className = "fl"; lab.textContent = FLAB[f];
+      var g = document.createElement("div"); g.className = "nface"; g.style.gridTemplateColumns = "repeat(" + n + ", " + cs + "px)";
+      ent[f].forEach(function (c, i) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "cell"; b.style.setProperty("--cs", cs + "px"); b.style.background = COL[c];
+        b.setAttribute("aria-label", FLAB[f] + " yüz, " + (i + 1) + ". kare");
+        b.addEventListener("click", function () { ent[f][i] = brush; $("eErr").hidden = true; drawEntry(); });
+        g.appendChild(b);
+      });
+      w.appendChild(lab); w.appendChild(g); net.appendChild(w);
+    });
+  }
+  $("eBack").addEventListener("click", function () { show("mode"); });
+  $("eReset").addEventListener("click", function () { ent = uniformColors(cur.n, SCHEME); $("eErr").hidden = true; drawEntry(); });
+  var OPP = { W: "Y", Y: "W", R: "O", O: "R", G: "B", B: "G" };
+  function entryError(msg) { var e = $("eErr"); e.textContent = msg; e.hidden = false; $("eGo").disabled = false; $("eGo").textContent = "Çözümü göster"; e.scrollIntoView({ block: "nearest" }); }
+  $("eGo").addEventListener("click", function () {
+    var n = cur.n, map = {}, fl = [], i, f;
+    $("eErr").hidden = true;
+    if (n === 3) {
+      for (i = 0; i < 6; i++) { var cc = ent[FORD[i]][4]; if (map[cc] !== undefined) return entryError("İki yüzün ortası aynı renk. Ortadaki kareler birbirinden farklı olmalı."); map[cc] = i; }
+    } else {
+      var cd = ent.D[2], cl = ent.L[2], cb = ent.B[3];
+      var scheme = [OPP[cd], OPP[cl], OPP[cb], cd, cl, cb]; // U R F D L B
+      for (i = 0; i < 6; i++) { if (map[scheme[i]] !== undefined) return entryError("Alt-sol-arka köşenin renkleri standart düzene uymuyor (beyaz-sarı, kırmızı-turuncu, yeşil-mavi karşılıklı olmalı)."); map[scheme[i]] = i; }
+    }
+    for (i = 0; i < 6; i++) { f = FORD[i]; ent[f].forEach(function (c) { fl.push(map[c]); }); }
+    var snap = {}; FORD.forEach(function (k) { snap[k] = ent[k].slice(); });
+    $("eGo").disabled = true; $("eGo").textContent = "Hesaplanıyor…";
+    setTimeout(function () {
+      var res;
+      try { res = n === 3 ? ZKSolver.solve3(fl) : ZKSolver.solve2(fl); } catch (e) { res = { error: "Bir hata oluştu. Renkleri kontrol edip tekrar dene." }; }
+      if (res.error) return entryError(res.error);
+      if (!res.moves.length) return entryError("Bu küp zaten çözülmüş görünüyor.");
+      $("eGo").disabled = false; $("eGo").textContent = "Çözümü göster";
+      solution = res.moves; openGame(cur, "solve", snap);
+    }, 40);
+  });
+
+  /* ---------- Çözdür ---------- */
+  var pos = 0;
+  function solveStart() { pos = 0; playing = false; solveShow(); }
+  function solveShow() {
+    var chips = solution.map(function (m, i) { return '<span class="chip' + (i < pos ? " done" : i === pos ? " on" : "") + '" id="c' + i + '">' + m + "</span>"; }).join("");
+    var d = pos >= solution.length ? "✓ Küp çözüldü!" : "<b>" + solution[pos] + ":</b> " + describe(solution[pos]);
+    panel.innerHTML = '<div class="st" id="sst">Hamle ' + pos + " / " + solution.length + "</div>" +
+      '<div class="chips">' + chips + '</div><p id="sdesc">' + d + "</p>" +
+      '<div class="row">' + btn("sRe", "Baştan") + btn("sPrev", "‹ Geri") + btn("sPlay", playing ? "Duraklat" : "Oynat", "pri") + btn("sNext", "İleri ›") + "</div>";
+    panel.hidden = false;
+    $("sPrev").disabled = busy || pos === 0; $("sNext").disabled = busy || pos >= solution.length; $("sRe").disabled = busy && !playing;
+    $("sPlay").disabled = pos >= solution.length && !playing;
+    var on = $("c" + Math.min(pos, solution.length - 1)); if (on && on.scrollIntoView) on.scrollIntoView({ block: "nearest", inline: "nearest" });
+    $("sNext").onclick = function () { stepFwd(); };
+    $("sPrev").onclick = function () { stepBack(); };
+    $("sRe").onclick = function () { playing = false; if (busy) return; rebuild(colorsCur); pos = 0; solveShow(); };
+    $("sPlay").onclick = function () { if (playing) { playing = false; solveShow(); return; } autoPlay(); };
+  }
+  async function stepFwd() {
+    if (busy || pos >= solution.length) return;
+    var my = gid; busy = true; solveShow();
+    await playMove(solution[pos], 480); if (my !== gid) return;
+    pos++; busy = false; solveShow();
+  }
+  async function stepBack() {
+    if (busy || pos === 0) return;
+    var my = gid; busy = true; solveShow();
+    await playMove(inv1(solution[pos - 1]), 480); if (my !== gid) return;
+    pos--; busy = false; solveShow();
+  }
+  async function autoPlay() {
+    var my = gid; if (busy) return;
+    if (pos >= solution.length) return;
+    playing = true; solveShow();
+    while (playing && my === gid && pos < solution.length) {
+      busy = true; await playMove(solution[pos], 480); if (my !== gid) return;
+      pos++; busy = false; solveShow();
+      await new Promise(function (r) { setTimeout(r, 250); });
+    }
+    if (my !== gid) return;
+    playing = false; busy = false; solveShow();
+  }
+
+  function rnd(k) { return Math.floor(Math.random() * k); }
+  async function shuffle() {
+    if (busy || !cubeGroup) return;
+    var my = gid;
+    busy = true; setSeg("shuffle"); solvedEl.hidden = true;
+    var count = [0, 0, 14, 22, 34, 44, 54, 64][N], ms = N <= 3 ? 140 : N <= 5 ? 95 : 65, last = null;
+    for (var i = 0; i < count; i++) {
+      if (my !== gid) return;
+      var ax, layer;
+      do { ax = rnd(3); layer = rnd(N); } while (last && last.ax === ax && last.layer === layer);
+      last = { ax: ax, layer: layer };
+      var turns = (Math.random() < 0.25 ? 2 : 1) * (Math.random() < 0.5 ? -1 : 1);
+      await doMove(AX[ax], layer - (N - 1) / 2, turns, Math.abs(turns) === 2 ? ms * 1.4 : ms);
+    }
+    if (my !== gid) return;
+    busy = false; setSeg("solve");
+    moves = 0; resetTimer(); scrambled = true; updateStats();
+  }
+  bShuffle.addEventListener("click", shuffle);
+
+  /* ---------- Sürükleme ---------- */
+  var drag = null, ray = null, ndc = null;
+  if (renderer) { ray = new THREE.Raycaster(); ndc = new V2(); }
+
+  function pick(e) {
+    var r = canvas.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    scene.updateMatrixWorld(true);
+    ray.setFromCamera(ndc, camera);
+    return ray.intersectObjects(cubies, false)[0] || null;
+  }
+  function toScreen(p) {
+    var v = p.clone().project(camera);
+    return new V2((v.x + 1) / 2 * stage.clientWidth, (1 - v.y) / 2 * stage.clientHeight);
+  }
+  function screenVec(p, dir) {
+    var a = toScreen(p), b = toScreen(p.clone().add(dir));
+    return new V2(b.x - a.x, b.y - a.y);
+  }
+  function domAxis(v) {
+    var ax = Math.abs(v.x) > Math.abs(v.y) ? (Math.abs(v.x) > Math.abs(v.z) ? 0 : 2) : (Math.abs(v.y) > Math.abs(v.z) ? 1 : 2);
+    return ax;
+  }
+
+  function initLayer(d) {
+    var hit = d.hit, q = cubeGroup.quaternion;
+    var nL = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).applyQuaternion(q.clone().invert());
+    var ni = domAxis(nL), n = new V3();
+    n.setComponent(ni, Math.sign(nL.getComponent(ni)) || 1);
+    var dv = new V2(d.x - d.x0, d.y - d.y0), best = null;
+    for (var k = 0; k < 3; k++) {
+      if (k === ni) continue;
+      var t = new V3(); t.setComponent(k, 1);
+      var s = screenVec(hit.point, t.clone().applyQuaternion(q));
+      var cos = dv.dot(s) / ((s.length() * dv.length()) || 1);
+      if (!best || Math.abs(cos) > Math.abs(best.cos)) best = { t: t, s: s, cos: cos };
+    }
+    var sg = best.cos >= 0 ? 1 : -1;
+    var tS = best.t.clone().multiplyScalar(sg), s2 = best.s.clone().multiplyScalar(sg);
+    var a = new V3().crossVectors(n, tS);
+    var hp = cubeGroup.worldToLocal(hit.point.clone());
+    var radius = hp.clone().sub(a.clone().multiplyScalar(hp.dot(a))).length();
+    d.axis = a; d.s = s2; d.radius = Math.max(radius, 0.5);
+    d.pivot = beginPivot(a, hit.object.position.dot(a));
+    d.angle = 0;
+  }
+  function applyAngle(d) {
+    var dv = new V2(d.x - d.x0, d.y - d.y0);
+    d.angle = dv.dot(d.s) / d.s.lengthSq() / d.radius;
+    d.pivot.quaternion.setFromAxisAngle(d.axis, d.angle);
+    render();
+  }
+  async function endLayer(d) {
+    busy = true;
+    var q = Math.PI / 2, from = d.angle, target = Math.round(from / q) * q;
+    if (target === 0 && Math.abs(from) > 0.3) target = Math.sign(from) * q;
+    var dur = Math.max(90, 170 * Math.abs(target - from) / q + 60), pv = d.pivot, my = gid;
+    await tween(dur, function (k) { pv.quaternion.setFromAxisAngle(d.axis, from + (target - from) * eOut(k)); });
+    commit(pv);
+    if (my !== gid) return;
+    busy = false;
+    if (mode === "learn") learnCheck();
+    if (Math.abs(target) > 1e-6) {
+      moves++; startTimer(); hint.classList.add("off");
+      if (scrambled && isSolved()) {
+        scrambled = false; tStop = performance.now(); clearInterval(tId); tId = null; showSolved();
+      }
+      updateStats();
+    }
+  }
+  function rotateView(dx, dy) {
+    var k = 0.01;
+    var qy = new Q4().setFromAxisAngle(AX[1], dx * k), qx = new Q4().setFromAxisAngle(AX[0], dy * k);
+    cubeGroup.quaternion.premultiply(qx).premultiply(qy);
+    render();
+  }
+
+  if (renderer) {
+    canvas.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    canvas.addEventListener("pointerdown", function (e) {
+      if (drag || !cubeGroup) return;
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+      var hit = (busy || mode === "solve") ? null : pick(e);
+      drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, mode: hit ? "pending" : "view", hit: hit };
+    });
+    canvas.addEventListener("pointermove", function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.x = e.clientX; drag.y = e.clientY;
+      if (drag.mode === "view") rotateView(dx, dy);
+      else if (drag.mode === "pending") {
+        if (Math.hypot(drag.x - drag.x0, drag.y - drag.y0) > 8) { initLayer(drag); drag.mode = "layer"; applyAngle(drag); }
+      } else applyAngle(drag);
+    });
+    function release(e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var d = drag; drag = null;
+      if (d.mode === "layer") endLayer(d);
+    }
+    canvas.addEventListener("pointerup", release);
+    canvas.addEventListener("pointercancel", release);
+  }
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("./sw.js").catch(function () {}); });
+}
+</script>
+</body>
+</html>
